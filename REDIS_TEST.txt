@@ -1,0 +1,47 @@
+﻿// 假设预备1000个房间
+for (int i = 0;i < 1000; ++i){
+  var key = "room"+(i+1).toString();
+  var keyIds = key + "ids";
+  var keyPlayerStatus = uid + "status";
+
+  client.watch([keyIds, keyPlayerStatus]);
+  client.get(keyPlayerStatus,  (err, data) => {
+    if (!err){
+      var playerStatus = data;
+      if (playerStatus.roomId > 0){
+        // 玩家已经进入另一个房间或者还在另一个房间
+        // 返回客户端房间号和当前房间状态
+        client.unwatch();
+        return;
+      }else{                
+        client.get(keyIds,  (err, data) => {
+          if (!err){
+            var playerIds =  data;
+            if (playerIds.count < MAX_PLAYER) {
+              var multi = client.multi();
+              playerIds.add(uid);
+              playerStatus.roomId = (i + 1).toString();        
+              multi.set(keyIds, playerIds);
+              multi.set(keyPlayerStatus, playerStatus);
+              multi.exec(function (err, result) {
+                if (!err){
+                  // 告诉客户端进入了第i个room
+                }else{
+                  // 告诉客户端没找到房间
+                }
+              });
+            }else{
+              client.unwatch();
+            }
+          }else{
+            // 错误处理
+            client.unwatch();
+          }
+        }); 
+      }
+    }else{
+      // 错误处理
+      client.unwatch();
+    }
+  }); 
+}
